@@ -213,14 +213,22 @@ html[data-theme] div[role="main"] img:not([role="log"] *) {
  * empty/new conversation (e.g. "You created this group"). Trickier than
  * the rule above: this one actually lives INSIDE [role="log"], alongside
  * real message content, so it can't be excluded by the same "outside the
- * log" logic. Verified 2026-08-23: unlike real per-message content, this
- * placeholder isn't wrapped in a [role="row"] — Messenger's message rows
- * (in the DOM shapes seen so far) all are. This is a narrower guarantee
- * than the other avatar rules in this file: if a future/different
- * Messenger DOM shape renders real message content without a [role="row"]
- * wrapper, this rule could incorrectly hide it. Revisit if any real
- * content ever disappears from the log unexpectedly. */
-html[data-theme] div[role="main"] [role="log"] img:not([role="row"] *) {
+ * log" logic.
+ *
+ * BUG FOUND AND FIXED 2026-08-23: the original version of this rule used
+ * `img:not([role="row"] *)` on the theory that real per-message content
+ * is always wrapped in [role="row"] and this placeholder never is —
+ * exactly the risk called out in this comment at the time ("if a future/
+ * different DOM shape renders real content without a [role="row"]
+ * wrapper, this rule could incorrectly hide it") turned out to already
+ * be true, not just a future risk: real stickers/emoji-reaction <img>
+ * elements sent in an actual conversation (alt="🌚", alt="😆") aren't
+ * wrapped in [role="row"] either, so they were being hidden right
+ * alongside the placeholder. Fixed by adding the one thing that does
+ * reliably separate them: the placeholder's wrapper (and the sender-
+ * avatar wrapper handled by the rule above) carry aria-hidden="true"
+ * somewhere in their ancestor chain; real sent stickers/reactions don't. */
+html[data-theme] div[role="main"] [role="log"] [aria-hidden="true"] img:not([role="row"] *) {
   display: none !important;
   width: 0 !important;
   height: 0 !important;

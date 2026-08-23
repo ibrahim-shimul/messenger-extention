@@ -193,6 +193,33 @@ this project. `history.pushState()` can change the path within
 facebook.com itself, but never the displayed origin or arbitrary text.
 Not something to revisit; there's no technical workaround to build here.
 
+## 2026-08-23 (yet later) — sticker/emoji visibility bug, master enable toggle, layout gap fix
+
+- **Real bug found and fixed**: the placeholder-avatar rule's own
+  documented risk ("if a future DOM shape renders real content without a
+  `[role="row"]` wrapper, this could incorrectly hide it") materialized —
+  sent stickers and emoji reactions (`<img alt="🌚">` etc.) aren't wrapped
+  in `[role="row"]` either, so they were being hidden along with the
+  placeholder. Fixed by requiring an `aria-hidden="true"` ancestor too —
+  present on the placeholder/sender-avatar wrappers, absent on real
+  stickers/reactions. Report this again if any other real content ever
+  disappears; the underlying assumption (content is always in a
+  `[role="row"]`) is still not something to fully trust given this
+  project's documented DOM instability.
+- Added a master `enabled` popup toggle and fixed a layout gap when
+  hiding the chat list — see the two commits pushed to GitHub for full
+  detail (search this file's git history / GitHub commit messages, which
+  carry the same explanations as this file for that round).
+- **Still open**: a right-side "conversation details" panel (Active now /
+  End-to-end encrypted / Profile / Mute / Search) was reported showing
+  duplicated info and needing to be hidden, but couldn't be reproduced
+  live in-session — the info button that opens it is hidden by our own
+  `hideHeaderActionButtons()`, and neither a programmatic `.click()` nor
+  restoring its visibility and clicking again reliably reopened the
+  panel (possibly needs a genuine trusted user gesture Messenger's own
+  handlers distinguish). Needs the user to reproduce it and describe/
+  screenshot the live DOM before a selector can be found.
+
 ## `conversationList` selector: DOM shape is not stable across reloads
 
 Discovered while chasing the avatar bug above, this is a bigger finding
