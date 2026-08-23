@@ -13,6 +13,17 @@
  * that would affect click targets or interactivity.
  */
 
+/* Messenger's own <body> background (a light gray, never touched by any
+ * rule below since they all target div[role="main"]/the sidebar
+ * specifically) was invisible as long as those two panes filled the
+ * whole viewport. It stopped being invisible once "hide chat list"
+ * existed: hiding the sidebar frees up space where body's own light
+ * background now shows through, clashing hard with the dark palette.
+ * Found 2026-08-23 chasing a "looks broken/shrunk" report. */
+html[data-theme] body {
+  background: var(--mw-bg-main) !important;
+}
+
 /* "Hide chat list" / "hide chat field" popup options, applied by
  * LayoutEnhancer.applyVisibility() as classes on <html>. Reuses the same
  * conversationList/main selectors as the rest of this file rather than
@@ -229,10 +240,22 @@ html[data-theme] div:has(> [role="tabpanel"]) > *:not([role="tabpanel"]) {
  * same effective values is a no-op with no visual side effect. The
  * message text itself (the actual leaf text nodes) already renders in
  * dark text independently of the bubble background, so readability isn't
- * affected by removing it. */
+ * affected by removing it.
+ *
+ * outline added same day, found after switching to the dark palette made
+ * it visible for the first time: Messenger sets a THIRD decoration
+ * property on these same bubbles beyond background/border-radius — an
+ * `outline: 10px solid white`, invisible against the old white page but
+ * showing as a stark white box around every message once the surroundings
+ * went dark. Neither `border` nor `box-shadow` catches `outline`; it's a
+ * genuinely separate CSS property. Worth remembering: don't assume
+ * background + border-radius + box-shadow is the complete list of
+ * decoration properties to check when a Messenger element still looks
+ * "boxed" after those three are cleared. */
 html[data-theme] div[role="main"] [role="log"] [role="presentation"] {
   background: transparent !important;
   border-radius: 0 !important;
+  outline: none !important;
 }
 
 /* Hide the contact/group name shown in the "conversation started" header
