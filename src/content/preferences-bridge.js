@@ -48,6 +48,20 @@ class PreferencesBridge {
     }
 
     applyPreferences(prefs) {
+        // Master on/off switch, checked first: ThemeEngine.setEnabled(false)
+        // strips data-theme and every custom property from <html>, which
+        // takes almost all of chatgpt-style.css down with it in one move
+        // (nearly every rule in that file is scoped under
+        // html[data-theme]). LayoutEnhancer.setEnabled() handles the rest
+        // — the density/visibility classes and button hides that aren't
+        // CSS-gated the same way. Both setEnabled() calls are safe to call
+        // every time regardless of whether the state actually changed.
+        const enabled = prefs.enabled !== false;
+        if (mwThemeEngine) mwThemeEngine.setEnabled(enabled);
+        if (mwLayoutEnhancer) mwLayoutEnhancer.setEnabled(enabled);
+
+        if (!enabled) return;
+
         if (mwThemeEngine) {
             mwThemeEngine.applyTheme({
                 theme: prefs.theme,

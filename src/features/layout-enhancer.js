@@ -14,6 +14,7 @@ class LayoutEnhancer {
         this.currentDensity = 'cozy';
         this.hideChatList = false;
         this.hideChatField = false;
+        this.enabled = true;
         this.root = document.documentElement;
         console.log('[MW LayoutEnhancer] Initialized');
     }
@@ -43,6 +44,38 @@ class LayoutEnhancer {
         });
     }
 
+    // Master on/off switch for the "enabled" popup toggle. Unlike the
+    // other per-feature toggles, this has to actually UNDO everything
+    // this module has done, not just stop doing it going forward —
+    // otherwise "disable" would only freeze the current look instead of
+    // reverting to stock Messenger. Covers everything this class touches
+    // that ISN'T already gated behind data-theme (which ThemeEngine.
+    // setEnabled() clears, taking most of chatgpt-style.css down with
+    // it in one move — see preferences-bridge.js): the density/
+    // visibility classes on <html>, the header/composer button hides
+    // (plain style.display writes, not CSS-gated), and the custom
+    // favicon. Title is deliberately left alone on disable — Messenger
+    // overwrites it on its own schedule anyway (see applyCustomTitle's
+    // own comment), so there's nothing reliable to restore it to.
+    setEnabled(enabled) {
+        this.enabled = enabled === true;
+
+        if (!this.enabled) {
+            this.validDensities.forEach(d => this.root.classList.remove(`mw-density-${d}`));
+            this.root.classList.remove('mw-hide-chat-list', 'mw-hide-chat-field');
+            this.showHeaderActionButtons();
+            this.showComposerActionButtons();
+            document.querySelectorAll('link[rel~="icon"]').forEach(link => link.remove());
+            return;
+        }
+
+        this.applyDensity(this.currentDensity);
+        this.applyVisibility(this.hideChatList, this.hideChatField);
+        this.applyCustomFavicon();
+        this.hideHeaderActionButtons();
+        this.hideComposerActionButtons();
+    }
+
     // Hides the composer's icon buttons (mic, attach, sticker, GIF,
     // emoji, send/like) so only the plain text input box is visible.
     // Verified 2026-08-23: the mirror image of hideHeaderActionButtons()
@@ -53,6 +86,7 @@ class LayoutEnhancer {
     // does not touch the textbox itself (role="textbox", not
     // role="button") or anything inside the message log.
     hideComposerActionButtons() {
+        if (!this.enabled) return;
         const main = mwSelectorAdapter ? mwSelectorAdapter.getElement('main') : null;
         if (!main) return;
 
@@ -64,6 +98,24 @@ class LayoutEnhancer {
             const position = button.compareDocumentPosition(log);
             if (position & Node.DOCUMENT_POSITION_PRECEDING) {
                 button.style.display = 'none';
+            }
+        });
+    }
+
+    // Restores composer buttons hidden by hideComposerActionButtons() —
+    // used by setEnabled(false). Same DOM-order scan, opposite effect.
+    showComposerActionButtons() {
+        const main = mwSelectorAdapter ? mwSelectorAdapter.getElement('main') : null;
+        if (!main) return;
+
+        const log = main.querySelector('[role="log"]') || main.querySelector('[role="grid"]');
+        if (!log) return;
+
+        main.querySelectorAll('[role="button"]').forEach(button => {
+            if (log.contains(button)) return;
+            const position = button.compareDocumentPosition(log);
+            if (position & Node.DOCUMENT_POSITION_PRECEDING) {
+                button.style.display = '';
             }
         });
     }
@@ -81,6 +133,7 @@ class LayoutEnhancer {
     // preferences-bridge.js) since Messenger replaces the header when
     // switching conversations.
     hideHeaderActionButtons() {
+        if (!this.enabled) return;
         const main = mwSelectorAdapter ? mwSelectorAdapter.getElement('main') : null;
         if (!main) return;
 
@@ -92,6 +145,24 @@ class LayoutEnhancer {
             const position = button.compareDocumentPosition(log);
             if (position & Node.DOCUMENT_POSITION_FOLLOWING) {
                 button.style.display = 'none';
+            }
+        });
+    }
+
+    // Restores header buttons hidden by hideHeaderActionButtons() — used
+    // by setEnabled(false). Same DOM-order scan, opposite effect.
+    showHeaderActionButtons() {
+        const main = mwSelectorAdapter ? mwSelectorAdapter.getElement('main') : null;
+        if (!main) return;
+
+        const log = main.querySelector('[role="log"]') || main.querySelector('[role="grid"]');
+        if (!log) return;
+
+        main.querySelectorAll('[role="button"]').forEach(button => {
+            if (log.contains(button)) return;
+            const position = button.compareDocumentPosition(log);
+            if (position & Node.DOCUMENT_POSITION_FOLLOWING) {
+                button.style.display = '';
             }
         });
     }
@@ -138,6 +209,8 @@ class LayoutEnhancer {
             console.warn('[MW LayoutEnhancer] Invalid density:', density, '- using cozy');
             density = 'cozy';
         }
+        this.currentDensity = density;
+        if (!this.enabled) return;
 
         this.validDensities.forEach(d => {
             this.root.classList.remove(`mw-density-${d}`);
@@ -150,8 +223,6 @@ class LayoutEnhancer {
         if (main) {
             main.setAttribute('data-mw-density', density);
         }
-
-        this.currentDensity = density;
     }
 
     getCurrentDensity() {
@@ -168,6 +239,7 @@ class LayoutEnhancer {
     applyVisibility(hideChatList, hideChatField) {
         this.hideChatList = hideChatList === true;
         this.hideChatField = hideChatField === true;
+        if (!this.enabled) return;
         this.root.classList.toggle('mw-hide-chat-list', this.hideChatList);
         this.root.classList.toggle('mw-hide-chat-field', this.hideChatField);
     }

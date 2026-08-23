@@ -7,6 +7,7 @@
 // preferences-bridge.js still has a value to apply; there's no UI for them.
 (function () {
     const DEFAULTS = {
+        enabled: true,
         theme: 'light',
         density: 'cozy',
         accentColor: '#4ec9b0',
@@ -18,6 +19,7 @@
     };
 
     const el = {
+        enabled: document.getElementById('mw-enabled'),
         density: document.getElementById('mw-density-select'),
         fontSize: document.getElementById('mw-font-size'),
         showTimestamp: document.getElementById('mw-show-timestamp'),
@@ -39,6 +41,7 @@
     }
 
     function applyToForm(prefs) {
+        setBool(el.enabled, prefs.enabled !== false);
         el.density.value = prefs.density;
         el.fontSize.value = prefs.fontSize;
         setBool(el.showTimestamp, prefs.showTimestamp !== false);
@@ -49,6 +52,7 @@
 
     function collectFromForm() {
         return {
+            enabled: getBool(el.enabled),
             theme: DEFAULTS.theme,
             density: el.density.value,
             accentColor: DEFAULTS.accentColor,
@@ -70,6 +74,10 @@
             applyToForm({ ...DEFAULTS, ...result });
         });
     }
+
+    el.enabled.addEventListener('click', () => {
+        setBool(el.enabled, !getBool(el.enabled));
+    });
 
     el.showTimestamp.addEventListener('click', () => {
         setBool(el.showTimestamp, !getBool(el.showTimestamp));

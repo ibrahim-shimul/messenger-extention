@@ -3,6 +3,7 @@ class StorageService {
     constructor() {
         this.schemaVersion = 1;
         this.defaults = {
+            enabled: true,
             theme: 'light',
             density: 'cozy',
             accentColor: '#4ec9b0',

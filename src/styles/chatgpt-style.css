@@ -27,7 +27,17 @@ html[data-theme] body {
 /* "Hide chat list" / "hide chat field" popup options, applied by
  * LayoutEnhancer.applyVisibility() as classes on <html>. Reuses the same
  * conversationList/main selectors as the rest of this file rather than
- * introducing new ones. */
+ * introducing new ones.
+ *
+ * Found 2026-08-23 (a "message field looks shrunk" report): hiding just
+ * the grid/list itself isn't enough — it lives inside its own
+ * div[role="navigation"] wrapper (a sibling of div[role="main"] in a
+ * flex row), and that outer wrapper keeps its own fixed flex-basis width
+ * regardless of its now-hidden child, leaving a dead gap the same width
+ * as the old sidebar. Messenger's own layout doesn't know we hid
+ * anything — it never recalculates. Hiding the div[role="navigation"]
+ * wrapper itself (found via :has(), unique match) closes that gap. */
+html.mw-hide-chat-list div[role="navigation"]:has(div[role="grid"]),
 html.mw-hide-chat-list div[role="grid"]:not([role="main"] *),
 html.mw-hide-chat-list div[role="navigation"][aria-label="Facebook"] ul,
 html.mw-hide-chat-list ul[aria-label="Chats"],
