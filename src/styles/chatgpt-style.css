@@ -1,0 +1,267 @@
+/* ChatGPT-style presentation layer for Messenger.
+ *
+ * Selectors mirror the fallback chains in src/content/selector-adapter.js
+ * (kept in sync manually — see that file for why chains exist instead of
+ * single class-name selectors). Verified live against facebook.com/messages
+ * on 2026-08-23; see that file's per-target comments for verification notes
+ * and the one known gap (conversation header — no-op, see below).
+ *
+ * !important is used deliberately here: Messenger ships its own inline-ish,
+ * high-specificity generated styles, and this file's whole job is to win
+ * that fight for a small, explicit set of visual properties (background,
+ * text color, border, font, max-width). No selector below touches layout
+ * that would affect click targets or interactivity.
+ */
+
+/* "Hide chat list" / "hide chat field" popup options, applied by
+ * LayoutEnhancer.applyVisibility() as classes on <html>. Reuses the same
+ * conversationList/main selectors as the rest of this file rather than
+ * introducing new ones. */
+html.mw-hide-chat-list div[role="grid"]:not([role="main"] *),
+html.mw-hide-chat-list div[role="navigation"][aria-label="Facebook"] ul,
+html.mw-hide-chat-list ul[aria-label="Chats"],
+html.mw-hide-chat-list div[aria-label="Chats"],
+html.mw-hide-chat-list div[aria-label="Chat list"] {
+  display: none !important;
+}
+
+html.mw-hide-chat-field div[role="main"] {
+  display: none !important;
+}
+
+/* Messenger sets font-family (and text color) explicitly per element via
+ * its own generated CSS, so a single rule on <html> doesn't cascade down
+ * (an element's own declared value always beats an ancestor's,
+ * !important or not — !important only settles conflicts between rules
+ * that target the same element). Every descendant inside the two
+ * text-bearing regions needs its own override.
+ *
+ * The color override matters more than it might look: switching to a
+ * dark palette (2026-08-23) means Messenger's own message text — which
+ * has its own hardcoded dark color independent of the bubble background,
+ * see the "flatten chat bubbles" rule further down — would otherwise
+ * render as dark-on-dark and become unreadable. Broad as this selector
+ * is, it's the safest fix: better one uniform light-gray text color
+ * everywhere than an invisible message.
+ *
+ * background-color is here for the same reason, same day: several
+ * wrapper divs inside [role="log"] (row/gridcell containers, not just
+ * the bubble role="presentation" divs handled separately below) carry
+ * their own solid white background that was invisible against the old
+ * light palette and only became a visible problem once the surrounding
+ * pane went dark — patches of white showing through with barely-visible
+ * light-gray text on top. Deliberately background-COLOR only, not the
+ * `background` shorthand — real photos/attachments people share render
+ * as <img> elements, not CSS background-image, so this can't affect
+ * them; anything that legitimately uses background-image (icons, the
+ * still-separately-handled wallpaper) is untouched. */
+html[data-theme] div[role="main"] *,
+html[data-theme] div[role="grid"]:not([role="main"] *) *,
+html[data-theme] div[role="navigation"][aria-label="Facebook"] ul * {
+  font-family: var(--mw-font-family) !important;
+  color: var(--mw-text) !important;
+  background-color: transparent !important;
+}
+
+/* Main conversation pane */
+html[data-theme] div[role="main"] {
+  background: var(--mw-bg-main) !important;
+  color: var(--mw-text) !important;
+  border-color: var(--mw-border) !important;
+}
+
+/* Messenger's default (and per-conversation custom) chat wallpaper is
+ * rendered by nested elements carrying Messenger's own "__fb-dark-mode" or
+ * "__fb-light-mode" class (the name tracks the *conversation's* light/dark
+ * setting, not the page's) with an inline style background/gradient.
+ * Inline styles beat the rule above regardless of !important since it only
+ * targets the outer role="main" container, not these descendants — so
+ * strip their background too. Scoped to inside role="main" specifically
+ * so Messenger's actual light/dark mode elsewhere on the page (menus,
+ * dialogs, etc.) is untouched. */
+html[data-theme] div[role="main"] [class*="__fb-dark-mode"],
+html[data-theme] div[role="main"] [class*="__fb-light-mode"] {
+  background: none !important;
+  background-image: none !important;
+}
+
+/* Conversation list / sidebar. Verified 2026-08-23: Messenger renders this
+ * with an inconsistent DOM shape across reloads of the same account —
+ * sometimes a <ul>/<li> tree, sometimes role="grid"/role="row" with no
+ * <li> or nav ancestor. The one anchor that held in both cases: there is
+ * always exactly one role="grid" NOT nested inside div[role="main"] (which
+ * has its own role="grid" for the message log) — locale-independent since
+ * it's ARIA role, not label text. See selector-adapter.js. */
+html[data-theme] div[role="grid"]:not([role="main"] *),
+html[data-theme] div[role="navigation"][aria-label="Facebook"] ul,
+html[data-theme] ul[aria-label="Chats"],
+html[data-theme] div[aria-label="Chats"],
+html[data-theme] div[aria-label="Chat list"] {
+  background: var(--mw-bg-sidebar) !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Message list: centered, max-width column like ChatGPT's chat area */
+html[data-theme] div[role="main"] div[role="grid"],
+html[data-theme] div[role="main"] [role="log"] {
+  max-width: var(--mw-content-max-width);
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+/* Compose box. No border/stroke per request 2026-08-23 — border-color
+ * alone (used elsewhere in this file) would just recolor a border that
+ * Messenger's own styles give a nonzero width, so this needs an explicit
+ * border: none rather than relying on --mw-border like the other rules. */
+html[data-theme] div[aria-label="Message"][contenteditable="true"],
+html[data-theme] [role="textbox"][contenteditable="true"] {
+  background: var(--mw-bg-composer) !important;
+  color: var(--mw-text) !important;
+  border: none !important;
+  border-radius: 12px !important;
+}
+
+/* Correction to an earlier note (was wrong): div[role="banner"] is NOT an
+ * empty/unrelated element — it's Facebook's real, visible global top bar
+ * (search, apps grid, notifications, account avatar). That earlier "known
+ * gap" conclusion came from checking it during a different DOM state; see
+ * the conversationList comment above re: Messenger's DOM shape varying
+ * across reloads. This project's conversation header (the name + call/
+ * info icons above the message log) remains unresolved separately — no
+ * ARIA anchor for it exists anywhere in its ancestor chain, only hashed
+ * CSS classes. See selector-adapter.js.
+ *
+ * Hidden entirely per user request 2026-08-23 — text-first goal extends
+ * to Facebook's own site chrome, not just Messenger's. This also makes
+ * the account-avatar and Facebook-logo rules that used to target pieces
+ * of this bar individually redundant; removed in favor of just hiding
+ * the whole thing. */
+html[data-theme] div[role="banner"] {
+  display: none !important;
+}
+
+/* Hide profile-picture avatars in the conversation list for a text-first
+ * look. Verified 2026-08-23: which element actually renders the avatar
+ * varies with which DOM shape Messenger happens to render (see the
+ * conversationList comment above) — sometimes an inline <svg>, other
+ * times a plain <img>. Both are covered. Scoped strictly to the sidebar
+ * list, NOT to div[role="main"] — the message log contains actual
+ * photos/attachments people sent, which is real content, not
+ * presentation chrome, and must stay visible. */
+html[data-theme] div[role="grid"]:not([role="main"] *) img,
+html[data-theme] div[role="grid"]:not([role="main"] *) svg,
+html[data-theme] div[role="grid"]:not([role="main"] *) [role="img"],
+html[data-theme] div[role="grid"]:not([role="main"] *) [data-visualcompletion="ignore-dynamic"],
+html[data-theme] div[role="navigation"][aria-label="Facebook"] ul img,
+html[data-theme] div[role="navigation"][aria-label="Facebook"] ul [role="img"],
+html[data-theme] div[role="navigation"][aria-label="Facebook"] ul svg {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  visibility: hidden !important;
+}
+
+/* Hide the small per-message sender avatar (shown next to each message
+ * bubble) for a text-first look, without touching real photos/attachments
+ * people sent — those are a different structural pattern. Verified
+ * 2026-08-23: the sender avatar is always a small <img> (alt = the
+ * sender's name) wrapped in a clickable div[role="button"] that opens
+ * their profile; nothing else in the message log matches that shape, so
+ * this is safe to target without a size-based heuristic (which CSS can't
+ * express anyway). Scoped inside [role="log"] specifically. */
+html[data-theme] div[role="main"] [role="log"] div[role="button"] > img {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+/* Hide the conversation header avatar. Verified 2026-08-23: inside
+ * div[role="main"], everything outside [role="log"] is chrome (header,
+ * empty-state placeholder) — the message log is the only place real
+ * content (including sent photos) lives, so excluding it keeps this safe
+ * without needing to guess at the header's own selector (still unresolved
+ * — see selector-adapter.js). */
+html[data-theme] div[role="main"] img:not([role="log"] *) {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+/* Hide the large placeholder avatar Facebook shows at the top of an
+ * empty/new conversation (e.g. "You created this group"). Trickier than
+ * the rule above: this one actually lives INSIDE [role="log"], alongside
+ * real message content, so it can't be excluded by the same "outside the
+ * log" logic. Verified 2026-08-23: unlike real per-message content, this
+ * placeholder isn't wrapped in a [role="row"] — Messenger's message rows
+ * (in the DOM shapes seen so far) all are. This is a narrower guarantee
+ * than the other avatar rules in this file: if a future/different
+ * Messenger DOM shape renders real message content without a [role="row"]
+ * wrapper, this rule could incorrectly hide it. Revisit if any real
+ * content ever disappears from the log unexpectedly. */
+html[data-theme] div[role="main"] [role="log"] img:not([role="row"] *) {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+/* Hide the sidebar header block above the conversation list itself: the
+ * "Chats" title, search box, and All/Unread/Groups/Community tabs.
+ * Verified 2026-08-23: none of these have a stable role/aria-label of
+ * their own (locale text only), but they're reliably the non-tabpanel
+ * siblings of the one [role="tabpanel"] on the page (the conversation
+ * list panel) — a structural anchor rather than a text-based one, so it
+ * holds regardless of locale or which DOM shape Messenger renders. */
+html[data-theme] div:has(> [role="tabpanel"]) > *:not([role="tabpanel"]) {
+  display: none !important;
+}
+
+/* Strip chat-bubble styling (background, rounded corners) so messages
+ * read as plain flowing text, like a note/document, instead of distinct
+ * colored bubbles — requested 2026-08-23. Verified: bubble wrappers have
+ * no stable attribute of their own (just role="presentation", used
+ * broadly for ~340 other unrelated wrapper divs in the log too, so it
+ * can't be targeted precisely). Applying this to every role="presentation"
+ * in the log is a deliberately blunt but safe blanket rule: the ~20 that
+ * aren't bubbles already compute a transparent or white background with
+ * no border-radius, and the log's own background is already forced white
+ * by the "Main conversation pane" rule above, so overriding them to the
+ * same effective values is a no-op with no visual side effect. The
+ * message text itself (the actual leaf text nodes) already renders in
+ * dark text independently of the bubble background, so readability isn't
+ * affected by removing it. */
+html[data-theme] div[role="main"] [role="log"] [role="presentation"] {
+  background: transparent !important;
+  border-radius: 0 !important;
+}
+
+/* Hide the contact/group name shown in the "conversation started" header
+ * card at the top of a conversation (avatar + name + date), outside the
+ * message log. Verified 2026-08-23: it's an <h3>, the only genuinely
+ * visible one of 4 outside the log — the other 3 are already
+ * screen-reader-only (clip-path: inset(50%), 1x1px) accessibility labels
+ * for the encryption notice and composer, so hiding all 4 has no
+ * additional visual effect, just a minor accessibility trade-off for
+ * screen-reader users on that already-invisible text. */
+html[data-theme] div[role="main"] h3:not([role="log"] *) {
+  display: none !important;
+}
+
+/* Strip all box-shadow-based strokes/dividers/rings in the header chrome
+ * — requested 2026-08-23 ("no stroke", uniform color throughout).
+ * Verified: Messenger renders these via box-shadow, not border (an inset
+ * 1px ring around the header avatar circle, a soft blur under the header
+ * bar as a divider) — a border-color reset wouldn't touch them. Scoped
+ * to outside [role="log"] so nothing inside the actual message content
+ * is affected. */
+html[data-theme] div[role="main"] *:not([role="log"] *) {
+  box-shadow: none !important;
+}
+
+/* Respect reduced-motion preferences per the project's accessibility standard. */
+@media (prefers-reduced-motion: reduce) {
+  html[data-theme] * {
+    transition: none !important;
+    animation-duration: 0.001ms !important;
+  }
+}

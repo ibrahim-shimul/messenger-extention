@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Messenger Workspace</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <p class="mw-title">// messenger-workspace.config</p>
+
+  <div class="mw-row">
+    <span class="mw-key">density</span>
+    <select id="mw-density-select" class="mw-code-input">
+      <option value="compact">"compact"</option>
+      <option value="cozy">"cozy"</option>
+      <option value="spacious">"spacious"</option>
+    </select>
+  </div>
+
+  <div class="mw-row">
+    <span class="mw-key">font_size</span>
+    <select id="mw-font-size" class="mw-code-input">
+      <option value="14px">"14px"</option>
+      <option value="16px">"16px"</option>
+      <option value="18px">"18px"</option>
+    </select>
+  </div>
+
+  <div class="mw-row">
+    <span class="mw-key">show_timestamps</span>
+    <button type="button" id="mw-show-timestamp" class="mw-bool" data-value="true">true</button>
+  </div>
+
+  <div class="mw-row">
+    <span class="mw-key">focus_mode</span>
+    <button type="button" id="mw-enable-focus-mode" class="mw-bool" data-value="false">false</button>
+  </div>
+
+  <div class="mw-row">
+    <span class="mw-key">hide_chat_list</span>
+    <button type="button" id="mw-hide-chat-list" class="mw-bool" data-value="false">false</button>
+  </div>
+
+  <div class="mw-row">
+    <span class="mw-key">hide_chat_field</span>
+    <button type="button" id="mw-hide-chat-field" class="mw-bool" data-value="false">false</button>
+  </div>
+
+  <div class="mw-actions">
+    <button type="button" id="mw-reset" class="mw-cmd">reset()</button>
+    <button type="button" id="mw-save" class="mw-cmd mw-cmd-primary">save()</button>
+  </div>
+
+  <p id="mw-status" class="mw-status"></p>
+
+  <script src="popup.js"></script>
+</body>
+</html>

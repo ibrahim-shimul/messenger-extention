@@ -1,0 +1,26 @@
+{
+  "name": "messenger-workspace",
+  "version": "1.0.0",
+  "description": "A presentation-only workspace enhancement for Facebook Messenger",
+  "main": "src/content/bootstrap.js",
+  "scripts": {
+    "test": "jest",
+    "build": "echo \"No build step needed for plain JS extension\"",
+    "lint": "eslint src/ --ext .js"
+  },
+  "devDependencies": {
+    "eslint": "^8.0.0",
+    "jest": "^29.0.0",
+    "jest-environment-jsdom": "^30.4.1"
+  },
+  "jest": {
+    "testEnvironment": "jsdom",
+    "setupFilesAfterEnv": [
+      "<rootDir>/jest.setup.js"
+    ],
+    "moduleDirectories": [
+      "node_modules",
+      "src"
+    ]
+  }
+}

@@ -1,0 +1,11 @@
+html.mw-density-compact {
+  --mw-message-gap: 2px;
+}
+
+html.mw-density-cozy {
+  --mw-message-gap: 6px;
+}
+
+html.mw-density-spacious {
+  --mw-message-gap: 12px;
+}

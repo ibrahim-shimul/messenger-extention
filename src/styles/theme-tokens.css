@@ -1,0 +1,38 @@
+/* Base tokens. --accent-color / --font-size are written directly onto
+   <html> by theme-engine.js from user preferences; these are just the
+   pre-JS fallback values so nothing looks unstyled before init runs. */
+:root {
+  --accent-color: #4ec9b0;
+  --font-size: 15px;
+
+  --mw-font-family: "SF Mono", SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+  --mw-content-max-width: 768px;
+}
+
+/* Matches the popup's own VS-Code-dark-style palette (popup.css) instead
+   of a separate Notion-style light palette — requested 2026-08-23 so the
+   page and the settings popup read as one consistent surface. theme is
+   hardcoded to "light" throughout this project (see popup.js/theme-engine
+   comments — there's no UI to pick a theme), so this is the block that's
+   actually always applied; the "light"/"dark" attribute values themselves
+   no longer track an actual light/dark distinction, just legacy naming
+   from before the theme picker was removed. */
+html[data-theme="light"] {
+  color-scheme: dark;
+  --mw-bg-main: #1e1e1e;
+  --mw-bg-sidebar: #252526;
+  --mw-bg-composer: #2d2d2d;
+  --mw-text: #d4d4d4;
+  --mw-text-muted: #6a9955;
+  --mw-border: #3c3c3c;
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --mw-bg-main: #1e1e1e;
+  --mw-bg-sidebar: #252526;
+  --mw-bg-composer: #2d2d2d;
+  --mw-text: #d4d4d4;
+  --mw-text-muted: #6a9955;
+  --mw-border: #3c3c3c;
+}
