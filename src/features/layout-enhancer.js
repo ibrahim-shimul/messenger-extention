@@ -76,17 +76,16 @@ class LayoutEnhancer {
         this.hideComposerActionButtons();
     }
 
-    // Hides the composer's icon buttons (mic, attach, sticker, GIF,
-    // emoji, send/like) so only the plain text input box is visible.
-    // Verified 2026-08-23: the mirror image of hideHeaderActionButtons()
-    // above — same reasoning (no stable attribute distinguishes these
-    // from the header's buttons, both are same-sized role="button" with
-    // svg icons and no text), but composer buttons appear AFTER the
-    // message log in document order rather than before. Deliberately
-    // does not touch the textbox itself (role="textbox", not
-    // role="button") or anything inside the message log.
-    hideComposerActionButtons() {
-        if (!this.enabled) return;
+    // Shared by all four hide/show*ActionButtons methods below: header
+    // and composer buttons are the same shape (same-sized role="button"
+    // elements with svg icons, no stable attribute distinguishing them
+    // from each other) and can only be told apart by document order
+    // relative to the message log — header buttons come BEFORE it,
+    // composer buttons AFTER (a DOM-order test CSS selectors can't
+    // express, hence doing this in JS at all). `positionMask` is a
+    // Node.DOCUMENT_POSITION_* bit to match against, `display` is the
+    // style.display value to write ('none' to hide, '' to restore).
+    _setActionButtonsDisplay(positionMask, display) {
         const main = mwSelectorAdapter ? mwSelectorAdapter.getElement('main') : null;
         if (!main) return;
 
@@ -95,76 +94,40 @@ class LayoutEnhancer {
 
         main.querySelectorAll('[role="button"]').forEach(button => {
             if (log.contains(button)) return;
-            const position = button.compareDocumentPosition(log);
-            if (position & Node.DOCUMENT_POSITION_PRECEDING) {
-                button.style.display = 'none';
-            }
-        });
-    }
-
-    // Restores composer buttons hidden by hideComposerActionButtons() —
-    // used by setEnabled(false). Same DOM-order scan, opposite effect.
-    showComposerActionButtons() {
-        const main = mwSelectorAdapter ? mwSelectorAdapter.getElement('main') : null;
-        if (!main) return;
-
-        const log = main.querySelector('[role="log"]') || main.querySelector('[role="grid"]');
-        if (!log) return;
-
-        main.querySelectorAll('[role="button"]').forEach(button => {
-            if (log.contains(button)) return;
-            const position = button.compareDocumentPosition(log);
-            if (position & Node.DOCUMENT_POSITION_PRECEDING) {
-                button.style.display = '';
+            if (button.compareDocumentPosition(log) & positionMask) {
+                button.style.display = display;
             }
         });
     }
 
     // Hides the conversation header's call/video-call/info buttons.
-    // Verified 2026-08-23: unlike every other avatar/icon hidden in this
-    // project so far, these can't be targeted by CSS alone — they're
-    // same-sized role="button" elements with no distinguishing role or
-    // stable attribute, structurally identical to the composer's own
-    // buttons (mic, attach, sticker, etc.), which must stay untouched.
-    // The one thing that does reliably separate them: header buttons
-    // appear BEFORE the message log in document order, composer buttons
-    // after — a DOM-order test CSS selectors can't express, so this is
-    // JS-only. Re-run on every debounced rerender (registered by
-    // preferences-bridge.js) since Messenger replaces the header when
+    // Verified 2026-08-23: re-run on every debounced rerender (registered
+    // by preferences-bridge.js) since Messenger replaces the header when
     // switching conversations.
     hideHeaderActionButtons() {
         if (!this.enabled) return;
-        const main = mwSelectorAdapter ? mwSelectorAdapter.getElement('main') : null;
-        if (!main) return;
-
-        const log = main.querySelector('[role="log"]') || main.querySelector('[role="grid"]');
-        if (!log) return;
-
-        main.querySelectorAll('[role="button"]').forEach(button => {
-            if (log.contains(button)) return;
-            const position = button.compareDocumentPosition(log);
-            if (position & Node.DOCUMENT_POSITION_FOLLOWING) {
-                button.style.display = 'none';
-            }
-        });
+        this._setActionButtonsDisplay(Node.DOCUMENT_POSITION_FOLLOWING, 'none');
     }
 
     // Restores header buttons hidden by hideHeaderActionButtons() — used
-    // by setEnabled(false). Same DOM-order scan, opposite effect.
+    // by setEnabled(false).
     showHeaderActionButtons() {
-        const main = mwSelectorAdapter ? mwSelectorAdapter.getElement('main') : null;
-        if (!main) return;
+        this._setActionButtonsDisplay(Node.DOCUMENT_POSITION_FOLLOWING, '');
+    }
 
-        const log = main.querySelector('[role="log"]') || main.querySelector('[role="grid"]');
-        if (!log) return;
+    // Hides the composer's icon buttons (mic, attach, sticker, GIF,
+    // emoji, send/like) so only the plain text input box is visible.
+    // Deliberately does not touch the textbox itself (role="textbox",
+    // not role="button") or anything inside the message log.
+    hideComposerActionButtons() {
+        if (!this.enabled) return;
+        this._setActionButtonsDisplay(Node.DOCUMENT_POSITION_PRECEDING, 'none');
+    }
 
-        main.querySelectorAll('[role="button"]').forEach(button => {
-            if (log.contains(button)) return;
-            const position = button.compareDocumentPosition(log);
-            if (position & Node.DOCUMENT_POSITION_FOLLOWING) {
-                button.style.display = '';
-            }
-        });
+    // Restores composer buttons hidden by hideComposerActionButtons() —
+    // used by setEnabled(false).
+    showComposerActionButtons() {
+        this._setActionButtonsDisplay(Node.DOCUMENT_POSITION_PRECEDING, '');
     }
 
     // Replaces the browser-tab favicon with a small Notion-style ("N" on

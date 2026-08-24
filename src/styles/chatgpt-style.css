@@ -170,13 +170,8 @@ html[data-theme] div[role="banner"] {
  * list, NOT to div[role="main"] — the message log contains actual
  * photos/attachments people sent, which is real content, not
  * presentation chrome, and must stay visible. */
-html[data-theme] div[role="grid"]:not([role="main"] *) img,
-html[data-theme] div[role="grid"]:not([role="main"] *) svg,
-html[data-theme] div[role="grid"]:not([role="main"] *) [role="img"],
-html[data-theme] div[role="grid"]:not([role="main"] *) [data-visualcompletion="ignore-dynamic"],
-html[data-theme] div[role="navigation"][aria-label="Facebook"] ul img,
-html[data-theme] div[role="navigation"][aria-label="Facebook"] ul [role="img"],
-html[data-theme] div[role="navigation"][aria-label="Facebook"] ul svg {
+html[data-theme] div[role="grid"]:not([role="main"] *) :is(img, svg, [role="img"], [data-visualcompletion="ignore-dynamic"]),
+html[data-theme] div[role="navigation"][aria-label="Facebook"] ul :is(img, svg, [role="img"]) {
   display: none !important;
   width: 0 !important;
   height: 0 !important;
