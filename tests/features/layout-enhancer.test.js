@@ -55,4 +55,34 @@ describe('LayoutEnhancer', () => {
 
         expect(() => layoutEnhancer.applyDensity('compact')).not.toThrow();
     });
+
+    describe('setActionButtonsHidden', () => {
+        beforeEach(() => {
+            document.body.innerHTML = `
+                <div role="main">
+                    <div role="button" aria-label="Start a voice call"></div>
+                    <div role="button" aria-label="Go back"></div>
+                    <div role="log">
+                        <div role="button" aria-label="Send a like"></div>
+                    </div>
+                </div>
+            `;
+        });
+
+        test('hides header/composer buttons but not a "back" button or log content', () => {
+            layoutEnhancer.setActionButtonsHidden(true);
+
+            expect(document.querySelector('[aria-label="Start a voice call"]').style.display).toBe('none');
+            expect(document.querySelector('[aria-label="Go back"]').style.display).toBe('');
+            expect(document.querySelector('[aria-label="Send a like"]').style.display).toBe('');
+        });
+
+        test('restores buttons when un-hidden, back button was never touched', () => {
+            layoutEnhancer.setActionButtonsHidden(true);
+            layoutEnhancer.setActionButtonsHidden(false);
+
+            expect(document.querySelector('[aria-label="Start a voice call"]').style.display).toBe('');
+            expect(document.querySelector('[aria-label="Go back"]').style.display).toBe('');
+        });
+    });
 });

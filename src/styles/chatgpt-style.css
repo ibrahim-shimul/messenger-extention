@@ -13,6 +13,39 @@
  * that would affect click targets or interactivity.
  */
 
+/* Scrollbars fully hidden, requested 2026-08-23 (first dimmed, then this
+ * follow-up asked for fully invisible instead). Verified live it's a
+ * genuine OS/Chrome-rendered overlay scrollbar, not a Facebook-drawn UI
+ * element — no DOM element of any size/position matched it under
+ * repeated targeted searches (by descendant-of-log, by exact
+ * scroll-container id, by raw geometry across the whole document), and
+ * elementFromPoint at its exact pixel position hit the scrollable
+ * content underneath rather than a scrollbar element, which is exactly
+ * what a native overlay scrollbar looks like from script (it isn't part
+ * of the DOM at all). That's also why narrower attempts at specific
+ * scroll containers had no visible effect before this: styling *some*
+ * scroller doesn't reach *this* one if it isn't the element actually
+ * producing the visible bar, and there was no reliable way found to
+ * identify which nested `overflow: auto` element that is — `*` +
+ * `::-webkit-scrollbar` sidesteps the question by catching every
+ * scroller on the page regardless, confirmed live to work.
+ *
+ * Scrolling itself is untouched — width: 0 hides the bar without
+ * disabling wheel/touch/keyboard scroll, unlike `overflow: hidden` on
+ * the scroll container (which was deliberately not used, since that
+ * would break scrolling, not just hide its indicator).
+ * `scrollbar-width: none` is the Firefox/standard equivalent, included
+ * for completeness though this project only targets Chromium. */
+html[data-theme] *,
+html[data-theme] {
+  scrollbar-width: none;
+}
+
+html[data-theme] ::-webkit-scrollbar {
+  width: 0 !important;
+  height: 0 !important;
+}
+
 /* Messenger's own <body> background (a light gray, never touched by any
  * rule below since they all target div[role="main"]/the sidebar
  * specifically) was invisible as long as those two panes filled the
@@ -180,8 +213,28 @@ html[data-theme] [role="textbox"][contenteditable="true"] {
  * to Facebook's own site chrome, not just Messenger's. This also makes
  * the account-avatar and Facebook-logo rules that used to target pieces
  * of this bar individually redundant; removed in favor of just hiding
- * the whole thing. */
-html[data-theme] div[role="banner"] {
+ * the whole thing.
+ *
+ * CORRECTION (2026-08-23, later): "the whole thing" was too broad. In a
+ * narrow/mobile-width viewport, Messenger switches to single-pane
+ * navigation — sidebar OR conversation, never both — and the only way
+ * back to the sidebar is a "Back to previous page" link that lives
+ * inside this same banner, as its first child (verified live: banner
+ * has 5 direct children, only children[0] contains that link). Hiding
+ * the banner outright silently broke the one way to leave a
+ * conversation on mobile.
+ *
+ * FOLLOW-UP correction, same session: the first version of this fix kept
+ * banner children[0] entirely — which turned out to also contain the
+ * Facebook logo link as ITS OWN sibling next to the back button (verified
+ * live: children[0] has 3 children of its own — a div wrapping the back
+ * button, the `<a aria-label="Facebook">` logo link, and one more div —
+ * so keeping all of children[0] kept the logo visible too). Narrowed one
+ * level deeper: hide banner's non-back child, AND within the child that
+ * does contain back, hide everything except the specific descendant that
+ * contains it. */
+html[data-theme] div[role="banner"] > *:not(:has([aria-label="Back to previous page"])),
+html[data-theme] div[role="banner"] > *:has([aria-label="Back to previous page"]) > *:not(:has([aria-label="Back to previous page"])) {
   display: none !important;
 }
 

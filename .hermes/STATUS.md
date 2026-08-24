@@ -220,6 +220,79 @@ Not something to revisit; there's no technical workaround to build here.
   handlers distinguish). Needs the user to reproduce it and describe/
   screenshot the live DOM before a selector can be found.
 
+## 2026-08-23 (later still) — mobile back button, scrollbar, more styling
+
+- **Compose box reversed to outline-only, no fill** (`#3c3c3c` 1px
+  border, transparent background) — earlier in this project the
+  composer had been explicitly made borderless; this request reversed
+  that specifically for the composer. `--mw-bg-composer` was dropped
+  from `theme-tokens.css` since nothing references a composer fill
+  colour any more.
+- **Emoji/sticker opacity dimmed further: 0.3 -> 0.15.** Still the same
+  known trade-off as before — no attribute distinguishes a sticker/
+  reaction `<img>` from a real sent photo, so photos dim too. At 0.15 a
+  shared photo is close to unviewable in place; `0.3` is noted in the
+  CSS as the value to revert to if that becomes a problem.
+
+**Mobile/narrow-viewport back button — found and fixed a real
+regression, twice.** Hiding `div[role="banner"]` entirely (done earlier
+this session for the "hide the whole top bar" request) turned out to
+also hide the "Back to previous page" link Messenger uses to return from
+a single-pane conversation view to the chat list once the viewport goes
+narrow enough to switch layouts — invisible on desktop where both panes
+show at once, but the only way back on mobile. Fixed in two passes:
+1. First pass kept the back link's whole container child of the banner
+   visible, which also kept the Facebook logo link visible (it turned
+   out to be a *sibling* of the back button within that same container,
+   not something outside it). Live-verified with a `querySelectorAll`
+   count check before writing — the count was right, but I was checking
+   the wrong ancestor level.
+2. Second pass went one level deeper: hide banner's non-back child, AND
+   within the child that has the back button, hide everything except
+   the specific descendant that actually contains it. Both banner
+   levels' child counts and paths were verified directly against the
+   live DOM (`aria-label="Back to previous page"` selector; unavoidably
+   English-only, same locale caveat as everywhere else ARIA text is
+   relied on in this project).
+
+Also added a JS-side defensive skip in `LayoutEnhancer.
+setActionButtonsHidden()`: any `role="button"` inside `role="main"`
+whose `aria-label` matches `/\bback\b/i` (case-insensitive English
+substring) is now never hidden, in case a differently-shaped "back to
+list" button ever renders inside `role="main"` itself rather than in
+the banner (as one did in a Bengali-locale session earlier this
+project, labeled "ফিরে যান" — that exact string won't match the English
+regex, so this is a partial safety net, not a real fix for other
+locales; flagged directly in the code comment). Covered by a test that
+fails without the guard (verified by removing the guard and re-running).
+
+**Scrollbar hidden**, in two steps (dim, then fully invisible on
+follow-up). Turned out to be a genuine OS/Chrome-rendered overlay
+scrollbar, not something Facebook draws itself — confirmed by repeated
+failed attempts to find a matching DOM element (by geometry across the
+whole document, by exact scroll-container id, by `elementFromPoint` at
+its exact pixel position, which hit the scrollable content underneath
+rather than a scrollbar element). That's also why the first two
+narrower CSS attempts (scoped to `[role="main"]`, then to the specific
+scroll container by id) had no visible effect — neither was actually
+the element producing the visible bar, and there was no reliable way
+found to identify which nested `overflow: auto` element that is. Fixed
+by going global: `*` + `::-webkit-scrollbar` catches every scroller on
+the page regardless of which one is real, confirmed live with a
+screenshot before being written into `chatgpt-style.css`. Uses
+`width: 0` rather than `overflow: hidden` on any container, so
+scrolling itself (wheel/touch/keyboard) is unaffected — verified live
+with an actual scroll action, not just a visual check.
+
+**Not yet confirmed live**: the final "fully invisible" scrollbar
+version and the two-pass back-button/FB-logo fix both need a genuine
+full reload (extension reload + tab close/reopen) to verify — this
+session hit the CSS-lags-behind-JS-after-reload caching pattern again
+partway through (`data-theme` picks up fine, new CSS rules sometimes
+don't on the same reload). Whoever picks this up next: re-check both
+live before assuming they're done, the code is written but the last
+visual confirmation didn't land before the session moved on.
+
 ## 2026-08-23 — code-health pass (2 real bugs fixed, dead weight removed)
 
 Audit of the whole codebase after the feature work settled. Suite went

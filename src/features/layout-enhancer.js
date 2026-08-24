@@ -8,6 +8,16 @@ if (typeof module !== 'undefined' && module.exports) {
     mwSelectorAdapter = mwSelectorAdapter || require('../content/selector-adapter');
 }
 
+// English-only substring match ("Back to previous page", "Go back",
+// etc.) — this project has repeatedly found aria-label text to be
+// locale-dependent (see selector-adapter.js's notes on the same problem
+// elsewhere), so this is a best-effort safety net for English sessions,
+// not a real cross-locale solution. If a "back" button ever gets hidden
+// again on a non-English account, that's why: this needs the equivalent
+// word for that locale added, or — better — a structural (non-text)
+// anchor found for it instead.
+const BACK_LABEL_RE = /\bback\b/i;
+
 class LayoutEnhancer {
     constructor() {
         this.validDensities = ['compact', 'cozy', 'spacious'];
@@ -86,6 +96,15 @@ class LayoutEnhancer {
     // own buttons (reactions, message actions) that must stay clickable.
     // The composer textbox is untouched for a different reason: it's
     // role="textbox", not role="button".
+    //
+    // Also skips anything aria-labeled as a "back" action (case-
+    // insensitive English match only — see the comment on BACK_LABEL_RE).
+    // In a narrow/mobile-width viewport Messenger switches to single-pane
+    // navigation, and a "go back to the conversation list" button can
+    // render inside role="main" itself in some DOM shapes (distinct from
+    // the global top-bar "Back to previous page" link handled separately
+    // in chatgpt-style.css) — hiding it would trap someone in a
+    // conversation with no way back to the list.
     setActionButtonsHidden(hidden) {
         const main = mwSelectorAdapter ? mwSelectorAdapter.getElement('main') : null;
         if (!main) return;
@@ -96,6 +115,7 @@ class LayoutEnhancer {
         const display = hidden ? 'none' : '';
         main.querySelectorAll('[role="button"]').forEach(button => {
             if (log.contains(button)) return;
+            if (hidden && BACK_LABEL_RE.test(button.getAttribute('aria-label') || '')) return;
             button.style.display = display;
         });
     }
