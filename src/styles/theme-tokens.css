@@ -11,36 +11,29 @@
 
 /* Matches the popup's own VS-Code-dark-style palette (popup.css) instead
    of a separate Notion-style light palette — requested 2026-08-23 so the
-   page and the settings popup read as one consistent surface. theme is
-   hardcoded to "light" throughout this project (see popup.js/theme-engine
-   comments — there's no UI to pick a theme), so this is the block that's
-   actually always applied; the "light"/"dark" attribute values themselves
-   no longer track an actual light/dark distinction, just legacy naming
-   from before the theme picker was removed.
+   page and the settings popup read as one consistent surface.
 
-   --mw-text dimmed four times per repeated feedback: #d4d4d4 (popup's
-   own value) -> #a0a0a0 (~6:1, above WCAG AA) -> #808080 (~4.1:1, just
-   below AA) -> #555555 (~1.8:1, deliberately low) -> #242424 (~1.15:1
-   against #1e1e1e — nearly the same color as the background). This last
-   step was an explicit exact value, not a guess; flagged to the user at
-   the time as likely unreadable, not backed off from unilaterally. If
-   text needs to be visible again, #808080 is a reasonable middle
-   ground; #555555 for still-subtle-but-legible. */
-html[data-theme="light"] {
-  color-scheme: dark;
-  --mw-bg-main: #1e1e1e;
-  --mw-bg-sidebar: #252526;
-  --mw-bg-composer: #2d2d2d;
-  --mw-text: #262626;
-  --mw-text-muted: #6a9955;
-  --mw-border: #3c3c3c;
-}
+   --mw-text dimmed repeatedly per feedback: #d4d4d4 (popup's own value)
+   -> #a0a0a0 (~6:1, above WCAG AA) -> #808080 (~4.1:1, just below AA)
+   -> #555555 (~1.8:1) -> #262626 (~1.15:1 against #1e1e1e — nearly the
+   same colour as the background). Each step was an explicit request and
+   was flagged as such at the time rather than softened unilaterally. If
+   text ever needs to be legible again, #808080 is a reasonable middle
+   ground and #555555 is still-subtle-but-readable.
 
+   Both attribute values are listed on one rule because they resolve to
+   the same palette: theme is hardcoded to "light" everywhere (there is
+   no theme picker any more), so "light"/"dark" no longer describe an
+   actual light/dark split — they're legacy value names kept only so
+   theme-engine.js has something to write into data-theme. They were two
+   byte-identical blocks until they were merged here. */
+html[data-theme="light"],
 html[data-theme="dark"] {
   color-scheme: dark;
+  /* No --mw-bg-composer: the compose box is outline-only now, so nothing
+     references a composer fill colour any more. */
   --mw-bg-main: #1e1e1e;
   --mw-bg-sidebar: #252526;
-  --mw-bg-composer: #2d2d2d;
   --mw-text: #262626;
   --mw-text-muted: #6a9955;
   --mw-border: #3c3c3c;

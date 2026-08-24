@@ -58,6 +58,10 @@
 
   <p id="mw-status" class="mw-status"></p>
 
+  <!-- storage-service.js first: it owns the single canonical copy of the
+       preference defaults and the read/write helpers, so popup.js doesn't
+       have to keep its own duplicate in sync. -->
+  <script src="../shared/storage-service.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

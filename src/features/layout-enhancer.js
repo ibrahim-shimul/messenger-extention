@@ -23,13 +23,12 @@ class LayoutEnhancer {
         this.applyDensity(this.currentDensity);
         this.applyCustomFavicon();
         this.applyCustomTitle();
-        this.hideHeaderActionButtons();
-        this.hideComposerActionButtons();
+        this.hideActionButtons();
 
         // On first load, Messenger's React app may not have mounted
         // div[role="main"] yet at the moment content scripts run
         // (document_idle fires once, independent of the SPA's own render
-        // timing) — hideHeaderActionButtons() silently no-ops if main/log
+        // timing) — hideActionButtons() silently no-ops if main/log
         // aren't there yet. The mutation-triggered reapply in
         // preferences-bridge.js covers later rerenders (switching
         // conversations, etc.), but there's no guarantee a qualifying
@@ -37,10 +36,7 @@ class LayoutEnhancer {
         // mounting" on first load. A few bounded retries close that gap
         // without polling indefinitely.
         [500, 1500, 3000].forEach(delay => {
-            setTimeout(() => {
-                this.hideHeaderActionButtons();
-                this.hideComposerActionButtons();
-            }, delay);
+            setTimeout(() => this.hideActionButtons(), delay);
         });
     }
 
@@ -63,8 +59,7 @@ class LayoutEnhancer {
         if (!this.enabled) {
             this.validDensities.forEach(d => this.root.classList.remove(`mw-density-${d}`));
             this.root.classList.remove('mw-hide-chat-list', 'mw-hide-chat-field');
-            this.showHeaderActionButtons();
-            this.showComposerActionButtons();
+            this.showActionButtons();
             document.querySelectorAll('link[rel~="icon"]').forEach(link => link.remove());
             return;
         }
@@ -72,62 +67,50 @@ class LayoutEnhancer {
         this.applyDensity(this.currentDensity);
         this.applyVisibility(this.hideChatList, this.hideChatField);
         this.applyCustomFavicon();
-        this.hideHeaderActionButtons();
-        this.hideComposerActionButtons();
+        this.hideActionButtons();
     }
 
-    // Shared by all four hide/show*ActionButtons methods below: header
-    // and composer buttons are the same shape (same-sized role="button"
-    // elements with svg icons, no stable attribute distinguishing them
-    // from each other) and can only be told apart by document order
-    // relative to the message log — header buttons come BEFORE it,
-    // composer buttons AFTER (a DOM-order test CSS selectors can't
-    // express, hence doing this in JS at all). `positionMask` is a
-    // Node.DOCUMENT_POSITION_* bit to match against, `display` is the
-    // style.display value to write ('none' to hide, '' to restore).
-    _setActionButtonsDisplay(positionMask, display) {
+    // Shows/hides both icon-button clusters around the message log: the
+    // conversation header's call/video-call/info buttons, and the
+    // composer's mic/attach/sticker/GIF/emoji/send buttons.
+    //
+    // These used to be two separate passes that told the clusters apart
+    // by document order relative to the log (header before, composer
+    // after) — necessary back when they could be toggled independently.
+    // Both are always toggled together now, so the position test is dead
+    // weight: every role="button" inside role="main" but outside the log
+    // belongs to one cluster or the other. One querySelectorAll and no
+    // per-button compareDocumentPosition call.
+    //
+    // Excluding the log is what keeps this safe — message content has its
+    // own buttons (reactions, message actions) that must stay clickable.
+    // The composer textbox is untouched for a different reason: it's
+    // role="textbox", not role="button".
+    setActionButtonsHidden(hidden) {
         const main = mwSelectorAdapter ? mwSelectorAdapter.getElement('main') : null;
         if (!main) return;
 
         const log = main.querySelector('[role="log"]') || main.querySelector('[role="grid"]');
         if (!log) return;
 
+        const display = hidden ? 'none' : '';
         main.querySelectorAll('[role="button"]').forEach(button => {
             if (log.contains(button)) return;
-            if (button.compareDocumentPosition(log) & positionMask) {
-                button.style.display = display;
-            }
+            button.style.display = display;
         });
     }
 
-    // Hides the conversation header's call/video-call/info buttons.
-    // Verified 2026-08-23: re-run on every debounced rerender (registered
-    // by preferences-bridge.js) since Messenger replaces the header when
-    // switching conversations.
-    hideHeaderActionButtons() {
+    // Re-run on every debounced rerender (registered by
+    // preferences-bridge.js) since Messenger rebuilds the header and
+    // composer when switching conversations.
+    hideActionButtons() {
         if (!this.enabled) return;
-        this._setActionButtonsDisplay(Node.DOCUMENT_POSITION_FOLLOWING, 'none');
+        this.setActionButtonsHidden(true);
     }
 
-    // Restores header buttons hidden by hideHeaderActionButtons() — used
-    // by setEnabled(false).
-    showHeaderActionButtons() {
-        this._setActionButtonsDisplay(Node.DOCUMENT_POSITION_FOLLOWING, '');
-    }
-
-    // Hides the composer's icon buttons (mic, attach, sticker, GIF,
-    // emoji, send/like) so only the plain text input box is visible.
-    // Deliberately does not touch the textbox itself (role="textbox",
-    // not role="button") or anything inside the message log.
-    hideComposerActionButtons() {
-        if (!this.enabled) return;
-        this._setActionButtonsDisplay(Node.DOCUMENT_POSITION_PRECEDING, 'none');
-    }
-
-    // Restores composer buttons hidden by hideComposerActionButtons() —
-    // used by setEnabled(false).
-    showComposerActionButtons() {
-        this._setActionButtonsDisplay(Node.DOCUMENT_POSITION_PRECEDING, '');
+    // Restores what hideActionButtons() hid — used by setEnabled(false).
+    showActionButtons() {
+        this.setActionButtonsHidden(false);
     }
 
     // Replaces the browser-tab favicon with a small Notion-style ("N" on
@@ -136,6 +119,7 @@ class LayoutEnhancer {
     // request, per this project's no-external-requests rule. Removes
     // Messenger's own <link rel="icon"> tags first so only ours applies.
     applyCustomFavicon() {
+        if (!this.enabled) return;
         document.querySelectorAll('link[rel~="icon"]').forEach(link => link.remove());
 
         const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">'
@@ -156,14 +140,18 @@ class LayoutEnhancer {
     // Facebook"). Requested as a cosmetic flourish, not a functional
     // change — the tradeoff is losing that unread-count-in-tab signal.
     //
-    // A MutationObserver-based "always reset it" approach was tried and
-    // reverted (2026-08-23): Messenger rewrites document.title itself on
-    // its own schedule (unread counts, route changes), and fighting it on
-    // every mutation created a runaway loop that froze the tab. A one-time
-    // set is safe; Messenger will eventually overwrite it again on its own
-    // next title update, which is an acceptable tradeoff for not hanging
-    // the page.
+    // A MutationObserver watching <title> and rewriting it on every change
+    // was tried and reverted (2026-08-23): Messenger rewrites
+    // document.title on its own schedule, and fighting it per-mutation
+    // created a runaway loop that froze the tab. So this stays a plain
+    // one-shot write with no observer.
+    //
+    // It is now also re-applied on SPA navigation (preferences-bridge.js
+    // calls this when the URL changes), which recovers the title after
+    // Messenger's own route-change rewrite without any of the per-mutation
+    // ping-pong risk — navigation is a far rarer, self-limiting trigger.
     applyCustomTitle() {
+        if (!this.enabled) return;
         document.title = '[object Messenger]';
     }
 

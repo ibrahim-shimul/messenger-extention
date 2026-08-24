@@ -5,6 +5,10 @@ class ObserverCoordinator {
         this.observer = null;
         this.debounceTimeout = null;
         this.debounceDelay = 300; // ms
+        // Upper bound on how long a burst of mutations can keep pushing
+        // the debounce back — see scheduleUpdate().
+        this.maxWait = 1000; // ms
+        this.pendingSince = null;
         console.log('[MW ObserverCoordinator] Initialized');
     }
 
@@ -37,28 +41,51 @@ class ObserverCoordinator {
         });
     }
 
+    // The observe() config below only subscribes to childList/attributes,
+    // so in production every delivered mutation already qualifies. This
+    // check is a deliberate guard for the case where someone later widens
+    // that config (adding characterData, say) without revisiting the
+    // callbacks — .some() rather than .filter() so a very large batch
+    // doesn't allocate a throwaway array just to ask "any?".
     mutationCallback(mutations) {
-        const relevantMutations = mutations.filter(mutation =>
+        const hasRelevantMutation = mutations.some(mutation =>
             mutation.type === 'childList' || mutation.type === 'attributes'
         );
 
-        if (relevantMutations.length > 0) {
+        if (hasRelevantMutation) {
             this.scheduleUpdate();
         }
     }
 
+    // Trailing debounce with a hard ceiling. A plain trailing debounce
+    // starves under sustained mutation: Messenger animates and rewrites
+    // class/style continuously, so if a mutation lands every <300ms the
+    // timer resets forever and the callbacks never run — exactly when
+    // reapplication matters most. maxWait guarantees they fire at least
+    // once per second during a sustained burst.
     scheduleUpdate() {
+        const now = Date.now();
+        if (this.pendingSince === null) {
+            this.pendingSince = now;
+        }
+
         if (this.debounceTimeout) {
             clearTimeout(this.debounceTimeout);
         }
 
-        this.debounceTimeout = setTimeout(() => {
-            this.applyUpdates();
-            this.debounceTimeout = null;
-        }, this.debounceDelay);
+        const elapsed = now - this.pendingSince;
+        const wait = Math.max(0, Math.min(this.debounceDelay, this.maxWait - elapsed));
+
+        this.debounceTimeout = setTimeout(() => this.applyUpdates(), wait);
     }
 
     applyUpdates() {
+        if (this.debounceTimeout) {
+            clearTimeout(this.debounceTimeout);
+            this.debounceTimeout = null;
+        }
+        this.pendingSince = null;
+
         this.callbacks.forEach(callback => {
             try {
                 callback();
@@ -78,6 +105,8 @@ class ObserverCoordinator {
             clearTimeout(this.debounceTimeout);
             this.debounceTimeout = null;
         }
+
+        this.pendingSince = null;
     }
 }
 

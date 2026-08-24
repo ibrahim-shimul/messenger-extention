@@ -220,6 +220,93 @@ Not something to revisit; there's no technical workaround to build here.
   handlers distinguish). Needs the user to reproduce it and describe/
   screenshot the live DOM before a selector can be found.
 
+## 2026-08-23 — code-health pass (2 real bugs fixed, dead weight removed)
+
+Audit of the whole codebase after the feature work settled. Suite went
+49 -> 58 tests, 9 -> 10 suites; `npm run lint` now passes clean for the
+first time. Every fix below is covered by a test that fails against the
+old code.
+
+**Bug 1 — the master enable/disable toggle never actually disabled the
+theme.** `ThemeEngine.setEnabled(false)` set `this.enabled = false` and
+*then* routed the reset through `applyTheme({})`, which starts with
+`if (!this.enabled) return`. So it cleared nothing: `data-theme` and
+every custom property stayed on `<html>`, keeping essentially all of
+`chatgpt-style.css` (scoped under `html[data-theme]`) live while the
+extension reported itself off. Only the class-based bits and the button
+hides actually reverted, which is why it looked *partly* right.
+Fixed by splitting out `clearAppliedTheme()` — the undo path is
+deliberately not gated on the same flag that gates the apply path.
+Regression tests added at both levels: `theme-engine.test.js` (unit) and
+`preferences-bridge.test.js` (the real toggle path, plus re-enable).
+The pre-existing `should respect enabled flag` test missed this because
+it only checked that `applyTheme` no-ops *while* disabled — never that
+disabling clears what was already applied.
+
+**Bug 2 — `bootstrap.detectNavigation()` was a permanent no-op that cost
+CPU on every mutation.** It ran a second full-subtree MutationObserver
+over `document.body` for the life of the page purely to spot
+`location.href` changes, then called `initModules()` — which early-
+returns on `this.initialized`, always true by then. Deleted. Navigation
+handling moved into `preferences-bridge.js`, which now compares
+`location.href` inside the ObserverCoordinator callback that was already
+running: no second observer, and it re-applies the things Messenger
+actually clobbers on route change (tab title, favicon). A full module
+re-init was deliberately *not* used — `PreferencesBridge.init()`
+registers listeners, so re-running it would double-register them.
+
+**Debounce starvation.** `ObserverCoordinator`'s trailing debounce reset
+its 300ms timer on every batch with no ceiling. Messenger rewrites
+class/style continuously, so a mutation landing every <300ms would defer
+the callbacks forever — precisely when reapplication matters most. Added
+`maxWait` (1s). The new test fails against the old implementation
+(verified by patching it back in, not just assumed).
+
+**Other cleanups**
+- `mutationCallback` used `.filter()` then checked `.length`; switched to
+  `.some()`. Note it is *not* dead code, despite appearances — a test
+  exercises it directly with a synthetic `characterData` mutation, and it
+  guards against someone widening the `observe()` config later.
+- The four `hide/show{Header,Composer}ActionButtons` methods collapsed to
+  `hideActionButtons()`/`showActionButtons()`. The document-order test
+  that distinguished the two clusters was dead weight once both became
+  always-toggled-together — every `role="button"` in `role="main"` but
+  outside the log belongs to one or the other. One `querySelectorAll`,
+  no per-button `compareDocumentPosition`.
+- `applyCustomFavicon()`/`applyCustomTitle()` gained `enabled` guards,
+  needed now that navigation re-invokes them.
+- Preference defaults were duplicated across `popup.js` and
+  `storage-service.js`; the popup now loads `storage-service.js` (via
+  `popup.html`) and uses it as the single source, for reads and writes
+  both. This drift was not hypothetical — the accent-colour change
+  earlier this session had to be made in three files.
+- Removed the dead `storageService.addChangeListener` registration in
+  `preferences-bridge.js`: it only fires for saves made through
+  storageService *in the same JS context*, and the popup is a different
+  context, so it could never see a popup save. `chrome.storage.onChanged`
+  is the only path that crosses that boundary and it was already wired.
+- Merged the two byte-identical `[data-theme="light"]`/`["dark"]` blocks.
+- **`npm run lint` was broken** — the script existed but no ESLint config
+  did, so it always failed with "couldn't find a configuration file".
+  Added `.eslintrc.js`; src and tests both lint clean.
+- New `tests/settings/popup.test.js` (5 tests) — the popup had zero
+  coverage and can't be driven by browser automation (Chrome blocks
+  scripting `chrome-extension://` pages), so these load `popup.html`'s
+  real markup and reproduce its real script order in a `vm` context.
+
+**Deliberately left alone**
+- `diagnostics.js` is still dead code (injected on every page, called by
+  nothing) and its level handling is odd — `info`/`warn`/`error` are
+  identical, and `logLevel` picks the console *method* for all messages
+  rather than filtering by severity. Left as-is because
+  `diagnostics.test.js` encodes that behaviour as intended; changing the
+  semantics would mean rewriting tests to assert something different,
+  which is churn rather than a fix. Wiring it up properly (and retiring
+  the scattered `console.log` calls) is the real cleanup, and it should
+  be its own change.
+- `settings-ui.js` remains orphaned and still injected — flagged only,
+  since a change removing it was explicitly declined earlier.
+
 ## `conversationList` selector: DOM shape is not stable across reloads
 
 Discovered while chasing the avatar bug above, this is a bigger finding

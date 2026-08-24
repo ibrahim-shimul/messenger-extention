@@ -11,16 +11,32 @@ class ThemeEngine {
     toKebabCase(str) {
         return str.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase();
     }
-    
-    applyTheme(preferences) {
-        if (!this.enabled) return;
-        
-        // Clear previous theme attributes
+
+    // Strips the currently-applied theme off <html>. Deliberately NOT
+    // gated on this.enabled — that gate belongs on the "write new styles"
+    // path (applyTheme), never on the "undo what we already wrote" path.
+    //
+    // This distinction was a real bug (fixed 2026-08-23): resetTheme()
+    // used to be implemented as applyTheme({}), so setEnabled(false) —
+    // which sets this.enabled = false and *then* asks for a reset — hit
+    // applyTheme's `if (!this.enabled) return` guard and silently cleared
+    // nothing. The master enable/disable toggle therefore left data-theme
+    // and every custom property in place, meaning nearly all of
+    // chatgpt-style.css (scoped under html[data-theme]) stayed applied
+    // while the extension reported itself disabled.
+    clearAppliedTheme() {
         Object.keys(this.currentTheme).forEach(key => {
             this.root.removeAttribute(`data-${key}`);
             this.root.style.removeProperty(`--${this.toKebabCase(key)}`);
         });
-        
+        this.currentTheme = {};
+    }
+
+    applyTheme(preferences) {
+        if (!this.enabled) return;
+
+        this.clearAppliedTheme();
+
         // Apply new theme
         this.currentTheme = { ...preferences };
         Object.entries(this.currentTheme).forEach(([key, value]) => {
@@ -33,22 +49,20 @@ class ThemeEngine {
                 this.root.style.setProperty(`--${kebabKey}`, stringValue);
             }
         });
-        
-        console.log('[MW ThemeEngine] Applied theme:', this.currentTheme);
     }
-    
+
     getCurrentTheme() {
         return { ...this.currentTheme };
     }
-    
+
     resetTheme() {
-        this.applyTheme({});
+        this.clearAppliedTheme();
     }
-    
+
     setEnabled(enabled) {
         this.enabled = !!enabled;
         if (!this.enabled) {
-            this.resetTheme();
+            this.clearAppliedTheme();
         }
     }
 }

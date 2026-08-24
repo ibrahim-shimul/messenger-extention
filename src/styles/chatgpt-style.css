@@ -143,15 +143,26 @@ html[data-theme] div[role="main"] [role="log"] {
   margin-right: auto !important;
 }
 
-/* Compose box. No border/stroke per request 2026-08-23 — border-color
- * alone (used elsewhere in this file) would just recolor a border that
- * Messenger's own styles give a nonzero width, so this needs an explicit
- * border: none rather than relying on --mw-border like the other rules. */
+/* Compose box: outline only, no fill (2026-08-23). This reverses an
+ * earlier "no stroke on the composer" pass — the filled pill read as too
+ * heavy once the surrounding palette went dark, so the fill is dropped
+ * and a subtle 1px stroke marks the input area instead.
+ *
+ * Verified live: the fill really does sit on the [role="textbox"] element
+ * itself (every ancestor is already transparent via the broad
+ * background-color reset above), so this is the right element to target —
+ * the visible rounded shape is a taller transparent wrapper with no
+ * stable attribute of its own. Note the textbox is only as tall as one
+ * line of text, so the stroke hugs the text rather than tracing that
+ * wrapper; that's the intended look here, not an oversight.
+ *
+ * `border` in full rather than `border-color`: Messenger gives this
+ * element a zero width, so recolouring alone would paint nothing. */
 html[data-theme] div[aria-label="Message"][contenteditable="true"],
 html[data-theme] [role="textbox"][contenteditable="true"] {
-  background: var(--mw-bg-composer) !important;
+  background: transparent !important;
   color: var(--mw-text) !important;
-  border: none !important;
+  border: 1px solid var(--mw-border) !important;
   border-radius: 12px !important;
 }
 
@@ -205,17 +216,20 @@ html[data-theme] div[role="main"] [role="log"] div[role="button"] > img {
 }
 
 /* Dim stickers/emoji reactions per request 2026-08-23 (0.75 -> 0.5 -> 0.3
- * across follow-ups; text (--mw-text) dims separately and independently
- * — kept apart deliberately since a later request was explicitly
- * images-only, not text). Applied to every visible <img> in the log
- * rather than a precise "stickers only" selector — there's no stable
- * attribute distinguishing a sticker/emoji reaction from a real sent
- * photo (both are plain <img> with arbitrary alt text), so this dims
- * real photos too as a known, accepted trade-off rather than something
- * to fix. Doesn't touch the imgs already hidden above (avatars) —
- * opacity on a display:none element is a no-op anyway. */
+ * -> 0.15 across follow-ups; text (--mw-text) dims separately and
+ * independently — kept apart deliberately since a later request was
+ * explicitly images-only, not text). Applied to every visible <img> in
+ * the log rather than a precise "stickers only" selector — there's no
+ * stable attribute distinguishing a sticker/emoji reaction from a real
+ * sent photo (both are plain <img> with arbitrary alt text), so this
+ * dims real photos too as a known, accepted trade-off rather than
+ * something to fix. Confirmed live at 0.15: shared photos (alt="Original
+ * image") sit in the same log and fade with everything else, which is
+ * getting close to unviewable — 0.3 is the value to go back to if photos
+ * need to be legible in place. Doesn't touch the imgs already hidden
+ * above (avatars) — opacity on a display:none element is a no-op. */
 html[data-theme] div[role="main"] [role="log"] img {
-  opacity: 0.3;
+  opacity: 0.15;
 }
 
 /* Hide the conversation header avatar. Verified 2026-08-23: inside

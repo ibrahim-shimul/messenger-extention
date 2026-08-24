@@ -35,6 +35,22 @@ describe('ObserverCoordinator', () => {
         expect(callback).toHaveBeenCalledTimes(1);
     });
 
+    test('should still fire during sustained mutation instead of starving', () => {
+        // A plain trailing debounce never fires if mutations keep landing
+        // inside the debounce window — which is Messenger's normal state
+        // (continuous class/style churn). maxWait is the guard.
+        const callback = jest.fn();
+        observerCoordinator.registerCallback(callback);
+
+        // Mutation every 100ms (well inside the 300ms debounce) for 2s.
+        for (let i = 0; i < 20; i++) {
+            observerCoordinator.mutationCallback([{ type: 'childList' }]);
+            jest.advanceTimersByTime(100);
+        }
+
+        expect(callback).toHaveBeenCalled();
+    });
+
     test('should ignore irrelevant mutation types', () => {
         const callback = jest.fn();
         observerCoordinator.registerCallback(callback);

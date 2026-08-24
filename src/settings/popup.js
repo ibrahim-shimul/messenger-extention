@@ -1,22 +1,18 @@
 // src/settings/popup.js
 //
 // Theme is no longer user-configurable — the extension always applies the
-// fixed ChatGPT-flat light palette (see theme-engine.js / theme-tokens.css).
-// Only layout preferences remain here. theme/accentColor stay in DEFAULTS
-// (and storage-service.js's own defaults) purely so applyPreferences() in
-// preferences-bridge.js still has a value to apply; there's no UI for them.
+// fixed dark palette (see theme-engine.js / theme-tokens.css). Only layout
+// preferences remain here. theme/accentColor stay in the defaults purely
+// so applyPreferences() in preferences-bridge.js still has a value to
+// apply; there's no UI for them.
 (function () {
-    const DEFAULTS = {
-        enabled: true,
-        theme: 'light',
-        density: 'cozy',
-        accentColor: '#4ec9b0',
-        fontSize: '15px',
-        showTimestamp: true,
-        enableFocusMode: false,
-        hideChatList: false,
-        hideChatField: false
-    };
+    // Defaults come from storage-service.js (loaded ahead of this file by
+    // popup.html) rather than a local copy. They used to be duplicated
+    // here, and drift was not hypothetical: changing the accent colour
+    // meant editing the same literal in three files, and missing one left
+    // the popup writing a stale value back over the real one on save.
+    // Shallow copy so nothing in here can mutate the canonical object.
+    const DEFAULTS = { ...storageService.defaults };
 
     const el = {
         enabled: document.getElementById('mw-enabled'),
@@ -69,10 +65,11 @@
         setTimeout(() => { el.status.textContent = ''; }, 1500);
     }
 
+    // Reads/writes go through storageService too, not raw chrome.storage,
+    // so the popup gets the same default-merging and key validation the
+    // content script already relies on.
     function load() {
-        chrome.storage.local.get(Object.keys(DEFAULTS), (result) => {
-            applyToForm({ ...DEFAULTS, ...result });
-        });
+        storageService.getPreferences(applyToForm);
     }
 
     el.enabled.addEventListener('click', () => {
@@ -96,12 +93,11 @@
     });
 
     el.save.addEventListener('click', () => {
-        const prefs = collectFromForm();
-        chrome.storage.local.set(prefs, () => showStatus('// saved'));
+        storageService.savePreferences(collectFromForm(), () => showStatus('// saved'));
     });
 
     el.reset.addEventListener('click', () => {
-        chrome.storage.local.set(DEFAULTS, () => {
+        storageService.savePreferences(DEFAULTS, () => {
             applyToForm(DEFAULTS);
             showStatus('// reset');
         });

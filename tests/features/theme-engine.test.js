@@ -71,6 +71,26 @@ describe('ThemeEngine', () => {
         expect(themeEngine.getCurrentTheme()).toEqual({});
     });
 
+    test('should strip an already-applied theme when disabled', () => {
+        // Regression test for the master enable/disable toggle: the old
+        // setEnabled(false) set this.enabled = false and then routed the
+        // reset through applyTheme(), which bails out on that same flag —
+        // so nothing was ever cleared and html[data-theme]-scoped CSS
+        // stayed live while the extension reported itself disabled.
+        themeEngine.setEnabled(true);
+        themeEngine.applyTheme({ theme: 'light', accentColor: '#4ec9b0' });
+        expect(document.documentElement.getAttribute('data-theme')).toBe('light');
+        expect(document.documentElement.style.getPropertyValue('--accent-color')).toBe('#4ec9b0');
+
+        themeEngine.setEnabled(false);
+
+        expect(document.documentElement.getAttribute('data-theme')).toBeNull();
+        expect(document.documentElement.style.getPropertyValue('--accent-color')).toBe('');
+        expect(themeEngine.getCurrentTheme()).toEqual({});
+
+        themeEngine.setEnabled(true);
+    });
+
     test('should respect enabled flag', () => {
         themeEngine.setEnabled(false);
         const preferences = { theme: 'dark' };

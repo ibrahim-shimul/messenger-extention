@@ -33,20 +33,21 @@ class ContentBootstrap {
         console.log('[MW Bootstrap] All modules initialized');
     }
     
-    detectNavigation() {
-        let lastUrl = location.href;
-        const observer = new MutationObserver(() => {
-            const currentUrl = location.href;
-            if (currentUrl !== lastUrl) {
-                lastUrl = currentUrl;
-                console.log('[MW Bootstrap] URL change detected:', currentUrl);
-                // Re-initialize modules on navigation
-                this.initModules();
-            }
-        });
-        
-        observer.observe(document.body, { childList: true, subtree: true });
-    }
+    // NOTE: there used to be a detectNavigation() here that ran a second
+    // full-subtree MutationObserver over document.body purely to watch for
+    // location.href changes, and called initModules() when it saw one.
+    // It was removed (2026-08-23) because it could never do anything:
+    // initModules() early-returns on `this.initialized`, which is always
+    // true by the time any navigation happens. So it paid the cost of a
+    // callback on every DOM mutation in a very chatty SPA, forever, in
+    // exchange for a guaranteed no-op.
+    //
+    // Navigation handling now lives in preferences-bridge.js, which
+    // compares location.href inside the ObserverCoordinator callback that
+    // was already running — no second observer, and it re-applies the
+    // things Messenger actually clobbers on route change (tab title,
+    // favicon) rather than attempting a full module re-init, which would
+    // double-register listeners.
 }
 
 // Create singleton instance

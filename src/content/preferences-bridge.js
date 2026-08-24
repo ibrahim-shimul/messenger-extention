@@ -26,8 +26,12 @@ class PreferencesBridge {
         if (!mwStorageService) return;
 
         mwStorageService.getPreferences((prefs) => this.applyPreferences(prefs));
-        mwStorageService.addChangeListener((prefs) => this.applyPreferences(prefs));
 
+        // chrome.storage.onChanged is the only sync path that matters
+        // here. storageService.addChangeListener() fires only for saves
+        // made through storageService in *this* JS context, and the popup
+        // lives in its own context — so a listener registered here could
+        // never see a popup save. onChanged is what crosses that boundary.
         if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.onChanged) {
             chrome.storage.onChanged.addListener((changes, area) => {
                 if (area !== 'local') return;
@@ -39,10 +43,22 @@ class PreferencesBridge {
         // navigation; reapply the current density tag when that happens so
         // it doesn't silently fall off the (possibly replaced) element.
         if (mwObserverCoordinator && mwLayoutEnhancer) {
+            let lastUrl = typeof location !== 'undefined' ? location.href : '';
+
             mwObserverCoordinator.registerCallback(() => {
                 mwLayoutEnhancer.applyDensity(mwLayoutEnhancer.getCurrentDensity());
-                mwLayoutEnhancer.hideHeaderActionButtons();
-                mwLayoutEnhancer.hideComposerActionButtons();
+                mwLayoutEnhancer.hideActionButtons();
+
+                // SPA navigation check, piggybacked on the observer that
+                // is already running rather than a second one of its own
+                // (see the note in bootstrap.js). Messenger rewrites the
+                // tab title and restores its own favicon on route change,
+                // so those get re-applied here.
+                if (typeof location !== 'undefined' && location.href !== lastUrl) {
+                    lastUrl = location.href;
+                    mwLayoutEnhancer.applyCustomTitle();
+                    mwLayoutEnhancer.applyCustomFavicon();
+                }
             });
         }
     }
@@ -91,13 +107,9 @@ if (typeof bootstrap !== 'undefined') {
 // there) so initModules() runs against the full module list.
 if (typeof bootstrap !== 'undefined') {
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => {
-            bootstrap.initModules();
-            bootstrap.detectNavigation();
-        });
+        document.addEventListener('DOMContentLoaded', () => bootstrap.initModules());
     } else {
         bootstrap.initModules();
-        bootstrap.detectNavigation();
     }
 }
 
