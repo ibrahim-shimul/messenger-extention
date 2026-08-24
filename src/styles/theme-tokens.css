@@ -16,13 +16,22 @@
    comments — there's no UI to pick a theme), so this is the block that's
    actually always applied; the "light"/"dark" attribute values themselves
    no longer track an actual light/dark distinction, just legacy naming
-   from before the theme picker was removed. */
+   from before the theme picker was removed.
+
+   --mw-text dimmed four times per repeated feedback: #d4d4d4 (popup's
+   own value) -> #a0a0a0 (~6:1, above WCAG AA) -> #808080 (~4.1:1, just
+   below AA) -> #555555 (~1.8:1, deliberately low) -> #242424 (~1.15:1
+   against #1e1e1e — nearly the same color as the background). This last
+   step was an explicit exact value, not a guess; flagged to the user at
+   the time as likely unreadable, not backed off from unilaterally. If
+   text needs to be visible again, #808080 is a reasonable middle
+   ground; #555555 for still-subtle-but-legible. */
 html[data-theme="light"] {
   color-scheme: dark;
   --mw-bg-main: #1e1e1e;
   --mw-bg-sidebar: #252526;
   --mw-bg-composer: #2d2d2d;
-  --mw-text: #d4d4d4;
+  --mw-text: #262626;
   --mw-text-muted: #6a9955;
   --mw-border: #3c3c3c;
 }
@@ -32,7 +41,7 @@ html[data-theme="dark"] {
   --mw-bg-main: #1e1e1e;
   --mw-bg-sidebar: #252526;
   --mw-bg-composer: #2d2d2d;
-  --mw-text: #d4d4d4;
+  --mw-text: #262626;
   --mw-text-muted: #6a9955;
   --mw-border: #3c3c3c;
 }

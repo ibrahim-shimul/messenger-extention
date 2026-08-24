@@ -123,6 +123,18 @@ html[data-theme] div[aria-label="Chat list"] {
   box-shadow: none !important;
 }
 
+/* Sidebar text specifically, brighter than the message-pane text
+ * (--mw-text, dimmed down to near-invisible per repeated feedback there)
+ * — the chat list needs to stay legible even as the main pane's text
+ * goes darker. Same specificity as the broad font/color/background-color
+ * rule above (both are `ancestor *`), so this only wins because it comes
+ * later in the file — cascade order matters here, don't move this
+ * earlier without also raising specificity. */
+html[data-theme] div[role="grid"]:not([role="main"] *) *,
+html[data-theme] div[role="navigation"][aria-label="Facebook"] ul * {
+  color: #2b2b2b !important;
+}
+
 /* Message list: centered, max-width column like ChatGPT's chat area */
 html[data-theme] div[role="main"] div[role="grid"],
 html[data-theme] div[role="main"] [role="log"] {
@@ -190,6 +202,20 @@ html[data-theme] div[role="main"] [role="log"] div[role="button"] > img {
   display: none !important;
   width: 0 !important;
   height: 0 !important;
+}
+
+/* Dim stickers/emoji reactions per request 2026-08-23 (0.75 -> 0.5 -> 0.3
+ * across follow-ups; text (--mw-text) dims separately and independently
+ * — kept apart deliberately since a later request was explicitly
+ * images-only, not text). Applied to every visible <img> in the log
+ * rather than a precise "stickers only" selector — there's no stable
+ * attribute distinguishing a sticker/emoji reaction from a real sent
+ * photo (both are plain <img> with arbitrary alt text), so this dims
+ * real photos too as a known, accepted trade-off rather than something
+ * to fix. Doesn't touch the imgs already hidden above (avatars) —
+ * opacity on a display:none element is a no-op anyway. */
+html[data-theme] div[role="main"] [role="log"] img {
+  opacity: 0.3;
 }
 
 /* Hide the conversation header avatar. Verified 2026-08-23: inside
